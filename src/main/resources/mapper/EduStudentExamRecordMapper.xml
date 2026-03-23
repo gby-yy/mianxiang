@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.edu.teaching.module.edu_student_exam_record.mapper.EduStudentExamRecordMapper">
+
+    <sql id="whereCondition">
+        <where>
+            <if test="entity.id != null">
+                AND eduStudentExamRecord.id = #{entity.id}
+            </if>
+            <if test="entity.studentId != null">
+                AND eduStudentExamRecord.student_id = #{entity.studentId}
+            </if>
+            <if test="entity.submitStatus != null">
+                AND eduStudentExamRecord.submit_status = #{entity.submitStatus}
+            </if>
+            <if test="entity.paperName != null and entity.paperName != ''">
+                AND eduChapterExamPaper.paper_name LIKE CONCAT('%', #{entity.paperName}, '%')
+            </if>
+            <if test="entity.realName != null and entity.realName != ''">
+                AND eduStudentUser.real_name LIKE CONCAT('%', #{entity.realName}, '%')
+            </if>
+        </where>
+    </sql>
+
+    <!-- 分页查询 -->
+    <select id="pageQuery" resultType="com.edu.teaching.module.edu_student_exam_record.entity.EduStudentExamRecord">
+        SELECT eduStudentExamRecord.*
+        , eduChapterExamPaper.paper_name AS paperName
+        , eduStudentUser.real_name AS realName
+        FROM edu_student_exam_record eduStudentExamRecord
+        LEFT JOIN edu_chapter_exam_paper eduChapterExamPaper ON eduStudentExamRecord.paper_id = eduChapterExamPaper.id
+        LEFT JOIN edu_student_user eduStudentUser ON eduStudentExamRecord.student_id = eduStudentUser.id
+        <include refid="whereCondition"/>
+        ORDER BY eduStudentExamRecord.create_time DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 查询总数 -->
+    <select id="countQuery" resultType="java.lang.Long">
+        SELECT COUNT(1)
+        FROM edu_student_exam_record eduStudentExamRecord
+        LEFT JOIN edu_chapter_exam_paper eduChapterExamPaper ON eduStudentExamRecord.paper_id = eduChapterExamPaper.id
+        LEFT JOIN edu_student_user eduStudentUser ON eduStudentExamRecord.student_id = eduStudentUser.id
+        <include refid="whereCondition"/>
+    </select>
+
+    <!-- 列表查询（不分页） -->
+    <select id="listQuery" resultType="com.edu.teaching.module.edu_student_exam_record.entity.EduStudentExamRecord">
+        SELECT eduStudentExamRecord.*
+        , eduChapterExamPaper.paper_name AS paperName
+        , eduStudentUser.real_name AS realName
+        FROM edu_student_exam_record eduStudentExamRecord
+        LEFT JOIN edu_chapter_exam_paper eduChapterExamPaper ON eduStudentExamRecord.paper_id = eduChapterExamPaper.id
+        LEFT JOIN edu_student_user eduStudentUser ON eduStudentExamRecord.student_id = eduStudentUser.id
+        <include refid="whereCondition"/>
+        ORDER BY eduStudentExamRecord.create_time DESC
+    </select>
+
+    <!-- 根据ID查询 -->
+    <select id="getById" resultType="com.edu.teaching.module.edu_student_exam_record.entity.EduStudentExamRecord">
+        SELECT eduStudentExamRecord.*
+        , eduChapterExamPaper.paper_name AS paperName
+        , eduStudentUser.real_name AS realName
+        FROM edu_student_exam_record eduStudentExamRecord
+        LEFT JOIN edu_chapter_exam_paper eduChapterExamPaper ON eduStudentExamRecord.paper_id = eduChapterExamPaper.id
+        LEFT JOIN edu_student_user eduStudentUser ON eduStudentExamRecord.student_id = eduStudentUser.id
+        WHERE eduStudentExamRecord.id = #{id}
+    </select>
+
+    <!-- 学生端：按学生及条件分页，含课程、章节、试卷总分 -->
+    <select id="listByStudentWithFilter" resultType="com.edu.teaching.module.edu_student_exam_record.entity.EduStudentExamRecord">
+        SELECT r.id, r.exam_no AS examNo, r.paper_id AS paperId, r.student_id AS studentId,
+               r.submit_status AS submitStatus, r.start_time AS startTime, r.submit_time AS submitTime,
+               r.objective_score AS objectiveScore, r.subjective_score AS subjectiveScore, r.total_score AS totalScore,
+               r.correct_rate AS correctRate, r.duration_seconds AS durationSeconds, r.create_time AS createTime,
+               p.paper_name AS paperName, p.total_score AS paperTotalScore,
+               ch.chapter_name AS chapterName, c.course_name AS courseName
+        FROM edu_student_exam_record r
+        LEFT JOIN edu_chapter_exam_paper p ON r.paper_id = p.id
+        LEFT JOIN edu_course_chapter ch ON p.chapter_id = ch.id
+        LEFT JOIN edu_course c ON ch.course_id = c.id
+        <where>
+            AND r.student_id = #{studentId}
+            <if test="courseId != null">AND ch.course_id = #{courseId}</if>
+            <if test="chapterId != null">AND p.chapter_id = #{chapterId}</if>
+            <if test="courseName != null and courseName != ''">AND c.course_name LIKE CONCAT('%', #{courseName}, '%')</if>
+            <if test="chapterName != null and chapterName != ''">AND ch.chapter_name LIKE CONCAT('%', #{chapterName}, '%')</if>
+            <if test="paperName != null and paperName != ''">AND p.paper_name LIKE CONCAT('%', #{paperName}, '%')</if>
+            <if test="questionKeyword != null and questionKeyword != ''">
+                AND EXISTS (
+                    SELECT 1 FROM edu_student_exam_answer a
+                    INNER JOIN edu_question_bank q ON a.question_id = q.id
+                    WHERE a.exam_record_id = r.id AND q.question_title LIKE CONCAT('%', #{questionKeyword}, '%')
+                )
+            </if>
+        </where>
+        ORDER BY r.create_time DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countByStudentWithFilter" resultType="java.lang.Long">
+        SELECT COUNT(1)
+        FROM edu_student_exam_record r
+        LEFT JOIN edu_chapter_exam_paper p ON r.paper_id = p.id
+        LEFT JOIN edu_course_chapter ch ON p.chapter_id = ch.id
+        LEFT JOIN edu_course c ON ch.course_id = c.id
+        <where>
+            AND r.student_id = #{studentId}
+            <if test="courseId != null">AND ch.course_id = #{courseId}</if>
+            <if test="chapterId != null">AND p.chapter_id = #{chapterId}</if>
+            <if test="courseName != null and courseName != ''">AND c.course_name LIKE CONCAT('%', #{courseName}, '%')</if>
+            <if test="chapterName != null and chapterName != ''">AND ch.chapter_name LIKE CONCAT('%', #{chapterName}, '%')</if>
+            <if test="paperName != null and paperName != ''">AND p.paper_name LIKE CONCAT('%', #{paperName}, '%')</if>
+            <if test="questionKeyword != null and questionKeyword != ''">
+                AND EXISTS (
+                    SELECT 1 FROM edu_student_exam_answer a
+                    INNER JOIN edu_question_bank q ON a.question_id = q.id
+                    WHERE a.exam_record_id = r.id AND q.question_title LIKE CONCAT('%', #{questionKeyword}, '%')
+                )
+            </if>
+        </where>
+    </select>
+
+    <!-- 按课程ID查询该课程下所有考试记录（含章节、试卷总分） -->
+    <select id="listByCourseId" resultType="com.edu.teaching.module.edu_student_exam_record.entity.EduStudentExamRecord">
+        SELECT r.id, r.exam_no AS examNo, r.paper_id AS paperId, r.student_id AS studentId,
+               r.submit_status AS submitStatus, r.start_time AS startTime, r.submit_time AS submitTime,
+               r.objective_score AS objectiveScore, r.subjective_score AS subjectiveScore, r.total_score AS totalScore,
+               r.correct_rate AS correctRate, r.duration_seconds AS durationSeconds, r.create_time AS createTime,
+               p.paper_name AS paperName, p.total_score AS paperTotalScore,
+               ch.id AS chapterId, ch.chapter_name AS chapterName, c.course_name AS courseName
+        FROM edu_student_exam_record r
+        INNER JOIN edu_chapter_exam_paper p ON r.paper_id = p.id
+        INNER JOIN edu_course_chapter ch ON p.chapter_id = ch.id
+        INNER JOIN edu_course c ON ch.course_id = c.id
+        WHERE ch.course_id = #{courseId}
+        ORDER BY ch.chapter_order ASC, r.create_time DESC
+    </select>
+
+    <!-- 全局：已提交考试次数与及格次数（及格线 60%） -->
+    <select id="getSubmittedExamPassStats" resultType="java.util.HashMap">
+        SELECT
+            COUNT(1) AS totalSubmitted,
+            CAST(SUM(CASE WHEN r.total_score >= IFNULL(ep.total_score, 100) * 0.6 THEN 1 ELSE 0 END) AS SIGNED) AS passCount
+        FROM edu_student_exam_record r
+        LEFT JOIN edu_chapter_exam_paper ep ON r.paper_id = ep.id
+        WHERE r.submit_status = 1
+    </select>
+
+</mapper>

@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.edu.teaching.module.edu_chapter_exam_paper.mapper.EduChapterExamPaperMapper">
+
+    <sql id="whereCondition">
+        <where>
+            <if test="entity.id != null">
+                AND eduChapterExamPaper.id = #{entity.id}
+            </if>
+            <if test="entity.paperName != null and entity.paperName != ''">
+                AND eduChapterExamPaper.paper_name LIKE CONCAT('%', #{entity.paperName}, '%')
+            </if>
+            <if test="entity.difficultyLevel != null">
+                AND eduChapterExamPaper.difficulty_level = #{entity.difficultyLevel}
+            </if>
+            <if test="entity.generateType != null">
+                AND eduChapterExamPaper.generate_type = #{entity.generateType}
+            </if>
+            <if test="entity.status != null">
+                AND eduChapterExamPaper.status = #{entity.status}
+            </if>
+            <if test="entity.chapterId != null">
+                AND eduChapterExamPaper.chapter_id = #{entity.chapterId}
+            </if>
+            <if test="entity.chapterName != null and entity.chapterName != ''">
+                AND eduCourseChapter.chapter_name LIKE CONCAT('%', #{entity.chapterName}, '%')
+            </if>
+            <if test="entity.teacherId != null">
+                AND eduCourse.teacher_id = #{entity.teacherId}
+            </if>
+        </where>
+    </sql>
+
+    <!-- 分页查询 -->
+    <select id="pageQuery" resultType="com.edu.teaching.module.edu_chapter_exam_paper.entity.EduChapterExamPaper">
+        SELECT eduChapterExamPaper.*
+        , eduCourseChapter.chapter_name AS chapterName
+        FROM edu_chapter_exam_paper eduChapterExamPaper
+        LEFT JOIN edu_course_chapter eduCourseChapter ON eduChapterExamPaper.chapter_id = eduCourseChapter.id
+        LEFT JOIN edu_course eduCourse ON eduCourseChapter.course_id = eduCourse.id
+        <include refid="whereCondition"/>
+        ORDER BY eduChapterExamPaper.create_time DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 查询总数 -->
+    <select id="countQuery" resultType="java.lang.Long">
+        SELECT COUNT(1)
+        FROM edu_chapter_exam_paper eduChapterExamPaper
+        LEFT JOIN edu_course_chapter eduCourseChapter ON eduChapterExamPaper.chapter_id = eduCourseChapter.id
+        LEFT JOIN edu_course eduCourse ON eduCourseChapter.course_id = eduCourse.id
+        <include refid="whereCondition"/>
+    </select>
+
+    <!-- 列表查询（不分页） -->
+    <select id="listQuery" resultType="com.edu.teaching.module.edu_chapter_exam_paper.entity.EduChapterExamPaper">
+        SELECT eduChapterExamPaper.*
+        , eduCourseChapter.chapter_name AS chapterName
+        FROM edu_chapter_exam_paper eduChapterExamPaper
+        LEFT JOIN edu_course_chapter eduCourseChapter ON eduChapterExamPaper.chapter_id = eduCourseChapter.id
+        LEFT JOIN edu_course eduCourse ON eduCourseChapter.course_id = eduCourse.id
+        <include refid="whereCondition"/>
+        ORDER BY eduChapterExamPaper.create_time DESC
+    </select>
+
+    <!-- 根据ID查询 -->
+    <select id="getById" resultType="com.edu.teaching.module.edu_chapter_exam_paper.entity.EduChapterExamPaper">
+        SELECT eduChapterExamPaper.*
+        , eduCourseChapter.chapter_name AS chapterName
+        FROM edu_chapter_exam_paper eduChapterExamPaper
+        LEFT JOIN edu_course_chapter eduCourseChapter ON eduChapterExamPaper.chapter_id = eduCourseChapter.id
+        LEFT JOIN edu_course eduCourse ON eduCourseChapter.course_id = eduCourse.id
+        WHERE eduChapterExamPaper.id = #{id}
+    </select>
+
+</mapper>

@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.edu.teaching.module.edu_exam_paper_question.mapper.EduExamPaperQuestionMapper">
+
+    <sql id="whereCondition">
+        <where>
+            <if test="entity.id != null">
+                AND eduExamPaperQuestion.id = #{entity.id}
+            </if>
+            <if test="entity.paperId != null">
+                AND eduExamPaperQuestion.paper_id = #{entity.paperId}
+            </if>
+            <if test="entity.questionId != null">
+                AND eduExamPaperQuestion.question_id = #{entity.questionId}
+            </if>
+            <if test="entity.paperName != null and entity.paperName != ''">
+                AND eduChapterExamPaper.paper_name LIKE CONCAT('%', #{entity.paperName}, '%')
+            </if>
+            <if test="entity.questionTitle != null and entity.questionTitle != ''">
+                AND eduQuestionBank.question_title LIKE CONCAT('%', #{entity.questionTitle}, '%')
+            </if>
+        </where>
+    </sql>
+
+    <!-- 分页查询 -->
+    <select id="pageQuery" resultType="com.edu.teaching.module.edu_exam_paper_question.entity.EduExamPaperQuestion">
+        SELECT eduExamPaperQuestion.*
+        , eduChapterExamPaper.paper_name AS paperName
+        , eduQuestionBank.question_title AS questionTitle
+        FROM edu_exam_paper_question eduExamPaperQuestion
+        LEFT JOIN edu_chapter_exam_paper eduChapterExamPaper ON eduExamPaperQuestion.paper_id = eduChapterExamPaper.id
+        LEFT JOIN edu_question_bank eduQuestionBank ON eduExamPaperQuestion.question_id = eduQuestionBank.id
+        <include refid="whereCondition"/>
+        ORDER BY eduExamPaperQuestion.create_time DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 查询总数 -->
+    <select id="countQuery" resultType="java.lang.Long">
+        SELECT COUNT(1)
+        FROM edu_exam_paper_question eduExamPaperQuestion
+        LEFT JOIN edu_chapter_exam_paper eduChapterExamPaper ON eduExamPaperQuestion.paper_id = eduChapterExamPaper.id
+        LEFT JOIN edu_question_bank eduQuestionBank ON eduExamPaperQuestion.question_id = eduQuestionBank.id
+        <include refid="whereCondition"/>
+    </select>
+
+    <!-- 列表查询（不分页） -->
+    <select id="listQuery" resultType="com.edu.teaching.module.edu_exam_paper_question.entity.EduExamPaperQuestion">
+        SELECT eduExamPaperQuestion.*
+        , eduChapterExamPaper.paper_name AS paperName
+        , eduQuestionBank.question_title AS questionTitle
+        , eduQuestionBank.question_type AS questionType
+        , eduQuestionBank.difficulty_level AS difficultyLevel
+        FROM edu_exam_paper_question eduExamPaperQuestion
+        LEFT JOIN edu_chapter_exam_paper eduChapterExamPaper ON eduExamPaperQuestion.paper_id = eduChapterExamPaper.id
+        LEFT JOIN edu_question_bank eduQuestionBank ON eduExamPaperQuestion.question_id = eduQuestionBank.id
+        <include refid="whereCondition"/>
+        ORDER BY eduQuestionBank.question_type ASC, eduExamPaperQuestion.sort_order ASC, eduExamPaperQuestion.create_time DESC
+    </select>
+
+    <!-- 根据ID查询 -->
+    <select id="getById" resultType="com.edu.teaching.module.edu_exam_paper_question.entity.EduExamPaperQuestion">
+        SELECT eduExamPaperQuestion.*
+        , eduChapterExamPaper.paper_name AS paperName
+        , eduQuestionBank.question_title AS questionTitle
+        FROM edu_exam_paper_question eduExamPaperQuestion
+        LEFT JOIN edu_chapter_exam_paper eduChapterExamPaper ON eduExamPaperQuestion.paper_id = eduChapterExamPaper.id
+        LEFT JOIN edu_question_bank eduQuestionBank ON eduExamPaperQuestion.question_id = eduQuestionBank.id
+        WHERE eduExamPaperQuestion.id = #{id}
+    </select>
+
+</mapper>

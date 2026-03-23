@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.edu.teaching.module.edu_student_course_record.mapper.EduStudentCourseRecordMapper">
+
+    <sql id="whereCondition">
+        <where>
+            <if test="entity.id != null">
+                AND t.id = #{entity.id}
+            </if>
+            <if test="entity.studentId != null">
+                AND t.student_id = #{entity.studentId}
+            </if>
+            <if test="entity.courseId != null">
+                AND t.course_id = #{entity.courseId}
+            </if>
+            <if test="entity.currentChapterId != null">
+                AND t.current_chapter_id = #{entity.currentChapterId}
+            </if>
+            <if test="entity.learnStatus != null">
+                AND t.learn_status = #{entity.learnStatus}
+            </if>
+        </where>
+    </sql>
+
+    <select id="pageQuery" resultType="com.edu.teaching.module.edu_student_course_record.entity.EduStudentCourseRecord">
+        SELECT t.*
+        FROM edu_student_course_record t
+        <include refid="whereCondition"/>
+        ORDER BY t.last_learn_time DESC, t.create_time DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countQuery" resultType="java.lang.Long">
+        SELECT COUNT(1)
+        FROM edu_student_course_record t
+        <include refid="whereCondition"/>
+    </select>
+
+    <select id="listQuery" resultType="com.edu.teaching.module.edu_student_course_record.entity.EduStudentCourseRecord">
+        SELECT t.*
+        FROM edu_student_course_record t
+        <include refid="whereCondition"/>
+        ORDER BY t.last_learn_time DESC, t.create_time DESC
+    </select>
+
+    <select id="getById" resultType="com.edu.teaching.module.edu_student_course_record.entity.EduStudentCourseRecord">
+        SELECT t.*
+        FROM edu_student_course_record t
+        WHERE t.id = #{id}
+    </select>
+
+    <select id="getByStudentIdAndCourseId" resultType="com.edu.teaching.module.edu_student_course_record.entity.EduStudentCourseRecord">
+        SELECT t.*
+        FROM edu_student_course_record t
+        WHERE t.student_id = #{studentId} AND t.course_id = #{courseId}
+        LIMIT 1
+    </select>
+
+</mapper>

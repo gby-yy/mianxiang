@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.edu.teaching.module.edu_student_course_chapter_record.mapper.EduStudentCourseChapterRecordMapper">
+
+    <sql id="whereCondition">
+        <where>
+            <if test="entity.id != null">
+                AND t.id = #{entity.id}
+            </if>
+            <if test="entity.recordId != null">
+                AND t.record_id = #{entity.recordId}
+            </if>
+            <if test="entity.studentId != null">
+                AND t.student_id = #{entity.studentId}
+            </if>
+            <if test="entity.courseId != null">
+                AND t.course_id = #{entity.courseId}
+            </if>
+            <if test="entity.sourceChapterId != null">
+                AND t.source_chapter_id = #{entity.sourceChapterId}
+            </if>
+            <if test="entity.chapterName != null and entity.chapterName != ''">
+                AND t.chapter_name LIKE CONCAT('%', #{entity.chapterName}, '%')
+            </if>
+            <if test="entity.chapterType != null">
+                AND t.chapter_type = #{entity.chapterType}
+            </if>
+            <if test="entity.unlockStatus != null">
+                AND t.unlock_status = #{entity.unlockStatus}
+            </if>
+            <if test="entity.studyStatus != null">
+                AND t.study_status = #{entity.studyStatus}
+            </if>
+        </where>
+    </sql>
+
+    <select id="pageQuery" resultType="com.edu.teaching.module.edu_student_course_chapter_record.entity.EduStudentCourseChapterRecord">
+        SELECT t.*
+        FROM edu_student_course_chapter_record t
+        <include refid="whereCondition"/>
+        ORDER BY t.chapter_order ASC, t.create_time ASC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countQuery" resultType="java.lang.Long">
+        SELECT COUNT(1)
+        FROM edu_student_course_chapter_record t
+        <include refid="whereCondition"/>
+    </select>
+
+    <select id="listQuery" resultType="com.edu.teaching.module.edu_student_course_chapter_record.entity.EduStudentCourseChapterRecord">
+        SELECT t.*
+        FROM edu_student_course_chapter_record t
+        <include refid="whereCondition"/>
+        ORDER BY t.chapter_order ASC, t.create_time ASC
+    </select>
+
+    <select id="getById" resultType="com.edu.teaching.module.edu_student_course_chapter_record.entity.EduStudentCourseChapterRecord">
+        SELECT t.*
+        FROM edu_student_course_chapter_record t
+        WHERE t.id = #{id}
+    </select>
+
+</mapper>

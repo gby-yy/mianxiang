@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.edu.teaching.basic.mapper.EchartsMapper">
+
+    <select id="countUserByRoleType" resultType="com.edu.teaching.vo.EchartsDataVO">
+        SELECT role_name AS name, COUNT(*) AS value FROM (SELECT CASE role_type WHEN 'admin' THEN '管理员' WHEN 'teacher' THEN '教师' END AS role_name FROM edu_user WHERE 1=1 <if test="status != null"> <if test="status != null and status != -1">AND status = #{status}</if></if>) t GROUP BY role_name
+    </select>
+
+    <select id="countCourseByDifficulty" resultType="com.edu.teaching.vo.EchartsDataVO">
+        SELECT difficulty_name AS name, COUNT(*) AS value FROM (SELECT CASE difficulty_level WHEN 1 THEN '基础' WHEN 2 THEN '中级' WHEN 3 THEN '高级' END AS difficulty_name FROM edu_course WHERE 1=1 <if test="startTime != null"> AND create_time &gt;= #{startTime}</if> <if test="endTime != null"> AND create_time &lt;= #{endTime}</if> <if test="auditStatus != null"> <if test="auditStatus != null and auditStatus != -1">AND audit_status = #{auditStatus}</if></if>) t GROUP BY difficulty_name
+    </select>
+
+    <select id="countQuestionByType" resultType="com.edu.teaching.vo.EchartsDataVO">
+        SELECT type_name AS name, COUNT(*) AS value FROM (SELECT CASE question_type WHEN 1 THEN '单选题' WHEN 2 THEN '多选题' WHEN 3 THEN '判断题' WHEN 4 THEN '填空题' WHEN 5 THEN '主观题' END AS type_name FROM edu_question_bank WHERE 1=1 <if test="difficultyLevel != null"> <if test="difficultyLevel != null and difficultyLevel != -1">AND difficulty_level = #{difficultyLevel}</if></if> <if test="status != null"> <if test="status != null and status != -1">AND status = #{status}</if></if>) t GROUP BY type_name
+    </select>
+
+    <select id="countExamRecordBySubmitStatus" resultType="com.edu.teaching.vo.EchartsDataVO">
+        SELECT status_name AS name, COUNT(*) AS value FROM (SELECT CASE submit_status WHEN 0 THEN '未提交' WHEN 1 THEN '已提交' END AS status_name FROM edu_student_exam_record WHERE 1=1 <if test="startTime != null"> AND start_time &gt;= #{startTime}</if> <if test="endTime != null"> AND start_time &lt;= #{endTime}</if>) t GROUP BY status_name
+    </select>
+
+    <select id="avgExamScoreByPaperDifficulty" resultType="com.edu.teaching.vo.EchartsDataVO">
+        SELECT difficulty_name AS name, AVG(total_score) AS value FROM (SELECT ep.difficulty_level, CASE ep.difficulty_level WHEN 1 THEN '简单' WHEN 2 THEN '中等' WHEN 3 THEN '困难' END AS difficulty_name, er.total_score FROM edu_student_exam_record er LEFT JOIN edu_chapter_exam_paper ep ON er.paper_id = ep.id WHERE er.submit_status = 1 <if test="startTime != null"> AND er.submit_time &gt;= #{startTime}</if> <if test="endTime != null"> AND er.submit_time &lt;= #{endTime}</if>) t GROUP BY difficulty_name, difficulty_level ORDER BY difficulty_level
+    </select>
+
+    <select id="countContentByContentType" resultType="com.edu.teaching.vo.EchartsDataVO">
+        SELECT type_name AS name, COUNT(*) AS value FROM (SELECT CASE content_type WHEN 1 THEN '学习视频' WHEN 2 THEN '学习文档' END AS type_name FROM edu_chapter_content WHERE 1=1 <if test="courseId != null"> AND chapter_id IN (SELECT id FROM edu_course_chapter WHERE course_id = #{courseId})</if>) t GROUP BY type_name
+    </select>
+
+    <!-- 试卷难度分布统计（全平台） -->
+    <select id="countPaperByDifficulty" resultType="com.edu.teaching.vo.EchartsDataVO">
+        SELECT difficulty_name AS name, COUNT(*) AS value
+        FROM (
+            SELECT CASE difficulty_level WHEN 1 THEN '简单' WHEN 2 THEN '中等' WHEN 3 THEN '困难' END AS difficulty_name
+            FROM edu_chapter_exam_paper
+            WHERE 1=1
+        ) t
+        GROUP BY difficulty_name
+        ORDER BY FIELD(t.difficulty_name, '简单', '中等', '困难')
+    </select>
+
+</mapper>
