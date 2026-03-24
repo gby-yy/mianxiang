@@ -501,9 +501,15 @@
       <div v-if="currentQuestionChapter" class="question-manage-container">
         <div class="question-header">
           <h3>章节：{{ currentQuestionChapter.chapterName }}</h3>
-          <el-button type="primary" size="small" @click="handleAddQuestion">
-            <i class="el-icon-plus"></i> 新建题目
-          </el-button>
+          <div class="header-actions">
+              <el-button type="primary" size="small" @click="handleAddQuestion">
+                <i class="el-icon-plus"></i> 新建题目
+              </el-button>
+              <el-button type="success" size="small" @click="handleImportQuestionDialog">
+                <i class="el-icon-upload2"></i> 批量导入
+              </el-button>
+            </div>
+
         </div>
 
         <!-- 搜索表单 -->
@@ -621,6 +627,49 @@
     </div>
     </el-dialog>
 
+    <!-- 批量导入题目对话框 -->
+        <el-dialog
+          title="批量导入题目"
+          :visible.sync="importQuestionDialogVisible"
+          width="600px"
+          :close-on-click-modal="false"
+          append-to-body
+        >
+          <el-form :model="importQuestionForm" label-width="100px" size="small">
+            <el-form-item label="Excel 文件">
+              <el-upload
+                action=""
+                :auto-upload="false"
+                :limit="1"
+                accept=".xlsx,.xls"
+                :on-change="handleQuestionFileChange"
+                :on-exceed="handleQuestionFileExceed"
+                :file-list="importQuestionForm.file ? [{name: importQuestionForm.file.name}] : []"
+              >
+                <el-button size="small" type="primary">选择文件</el-button>
+                <div slot="tip" class="el-upload__tip">
+                  仅支持 .xlsx 或 .xls 格式，文件大小不超过 10MB
+                </div>
+              </el-upload>
+            </el-form-item>
+
+            <el-form-item label="模板下载">
+              <el-button type="text" @click="downloadQuestionTemplate">
+                <i class="el-icon-download"></i> 下载 Excel 模板
+              </el-button>
+            </el-form-item>
+          </el-form>
+
+          <div slot="footer" class="dialog-footer">
+            <el-button @click="importQuestionDialogVisible = false">取消</el-button>
+            <el-button type="primary" @click="handleQuestionImport" :loading="importingQuestion">
+              开始导入
+            </el-button>
+          </div>
+        </el-dialog>
+
+
+
     <!-- 添加或修改题目对话框 -->
     <el-dialog :title="questionTitle" :visible.sync="questionDialogOpen" width="700px" append-to-body>
       <el-form ref="questionForm" :model="questionForm" :rules="questionRules" label-width="100px">
@@ -647,6 +696,7 @@
             />
           </el-select>
         </el-form-item>
+
         <!-- 选项管理（仅针对单选题、多选题、填空题） -->
         <el-form-item
           v-if="questionForm.questionType === 1 || questionForm.questionType === 2 || questionForm.questionType === 4"
@@ -1025,7 +1075,8 @@ import {
   saveEduQuestionBank,
   updateEduQuestionBank,
   deleteEduQuestionBank,
-  listEduQuestionBank
+  listEduQuestionBank,
+  importEduQuestionBank
 } from '@/api/edu_question_bank'
 import {
   listEduChapterExamPaper,
@@ -1070,6 +1121,14 @@ export default {
   },
   data() {
     return {
+
+      // 批量导入题目相关（新增）
+      importQuestionDialogVisible: false,
+      importQuestionForm: {
+        file: null
+      },
+      importingQuestion: false,
+
       // 课程列表相关
       courseList: [],
       filteredCourseList: [],
@@ -2670,6 +2729,100 @@ export default {
       }).catch(() => {
         this.aiGenerating = false
       })
+    },
+
+    // 打开批量导入对话框
+    handleImportQuestionDialog() {
+      console.log('===== 点击批量导入按钮 =====')
+      console.log('currentQuestionChapter:', this.currentQuestionChapter)
+
+      if (!this.currentQuestionChapter) {
+        this.$message.warning('请先选择章节')
+        return
+      }
+
+      console.log('准备打开批量导入对话框')
+      this.importQuestionDialogVisible = true
+      this.importQuestionForm = {
+        file: null
+      }
+      console.log('批量导入对话框已打开')
+    },
+
+    // 文件选择变化
+    handleQuestionFileChange(file) {
+      this.importQuestionForm.file = file.raw
+    },
+
+    // 超出文件数量限制
+    handleQuestionFileExceed() {
+      this.$message.warning('只能上传一个文件')
+    },
+
+    // 下载模板
+    downloadQuestionTemplate() {
+      const template = [
+        ['题目标题', '题目类型', '难度等级', '答案内容', '解析', '分值'],
+        ['Java 的基本数据类型有哪些？', '单选', '简单', 'A', '八种基本类型', '5'],
+        ['示例题目2', '多选', '中等', 'A,B', '解析内容', '5'],
+        ['示例题目3', '判断', '简单', '正确', '判断题解析', '5'],
+        ['示例题目4', '填空', '困难', '填空内容', '填空题解析', '5'],
+        ['示例题目5', '主观', '困难', '主观题答案', '主观题解析', '10']
+      ]
+
+      let csvContent = template.map(row => row.join(',')).join('\n')
+      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      link.href = URL.createObjectURL(blob)
+      link.download = 'question_import_template.csv'
+      link.click()
+    },
+
+    // 执行导入
+    // 执行导入
+    async handleQuestionImport() {
+      console.log('===== 点击开始导入按钮 =====')
+      console.log('文件:', this.importQuestionForm.file)
+      console.log('课程ID:', this.selectedCourseId)
+      console.log('章节ID:', this.currentQuestionChapter?.id)
+
+      if (!this.importQuestionForm.file) {
+        this.$message.warning('请选择要上传的文件')
+        return
+      }
+
+      const isExcel = this.importQuestionForm.file.name.endsWith('.xlsx') || this.importQuestionForm.file.name.endsWith('.xls')
+      if (!isExcel) {
+        this.$message.warning('请上传 Excel 文件（.xlsx 或 .xls）')
+        return
+      }
+
+      this.importingQuestion = true
+
+      try {
+        console.log('准备发送请求...')
+
+        const res = await importEduQuestionBank(
+          this.importQuestionForm.file,
+          this.selectedCourseId,
+          this.currentQuestionChapter.id
+        )
+
+        console.log('响应结果:', res)
+
+        this.$message.success(res.message || '导入成功')
+        this.importQuestionDialogVisible = false
+        this.handleQuestionQuery() // 刷新题目列表
+
+      } catch (error) {
+        console.error('导入失败:', error)
+        console.error('错误详情:', error.response)
+
+        const errorMsg = error.response?.data?.message || error.response?.data?.msg || error.message || '导入失败'
+        this.$message.error(errorMsg)
+      } finally {
+        this.importingQuestion = false
+      }
     }
   }
 }
