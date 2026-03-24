@@ -334,7 +334,7 @@ import {
   deleteEduQuestionBank,
   deleteBatchEduQuestionBank,
   listEduCourse,
-  listEduCourseChapter
+  listEduCourseChapter,
 } from '@/api/edu_question_bank'
 import {
   listEduQuestionOption,
@@ -347,6 +347,8 @@ import ImagePreview from '@/components/ImagePreview'
 import Pagination from '@/components/Pagination'
 import BasicEditor from '@/components/BasicEditor'
 import { mapGetters } from 'vuex'
+
+
 
 export default {
   name: 'EduQuestionBank',
@@ -436,6 +438,7 @@ export default {
       questionTypeEnumMap: { 1: '单选题', 2: '多选题', 3: '判断题', 4: '填空题', 5: '主观题' },
       difficultyLevelEnumMap: { 1: '低', 2: '中', 3: '高' },
       statusEnumMap: { 0: '停用', 1: '启用' },
+
     }
   },
   computed: {
@@ -711,7 +714,78 @@ export default {
     getDefaultOptionLabel(questionType, index) {
       if (questionType === 4) return `填空${index + 1}`
       return String.fromCharCode(65 + index)
-    }
+    },
+
+
+      // 文件选择变化
+      handleFileChange(file) {
+        this.importForm.file = file.raw
+      },
+
+      // 超出文件数量限制
+      handleExceed() {
+        this.$message.warning('只能上传一个文件')
+      },
+
+      // 下载模板
+      downloadTemplate() {
+        // 创建一个 Excel 模板下载
+        const template = [
+          ['题目标题', '题目类型', '难度等级', '答案内容', '解析', '分值'],
+          ['Java 的基本数据类型有哪些？', '单选', '简单', 'A', '八种基本类型包括 byte, short, int, long, float, double, char, boolean', '5'],
+          ['示例题目2', '多选', '中等', 'A,B', '解析内容', '5']
+        ]
+
+        // 使用简单的 CSV 格式下载（实际项目中可以使用 xlsx 库）
+        let csvContent = template.map(row => row.join(',')).join('\n')
+        const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
+        const link = document.createElement('a')
+        link.href = URL.createObjectURL(blob)
+        link.download = 'question_import_template.csv'
+        link.click()
+      },
+
+      // 执行导入
+      async handleImport() {
+        if (!this.importForm.courseId) {
+          this.$message.warning('请选择所属课程')
+          return
+        }
+        if (!this.importForm.chapterId) {
+          this.$message.warning('请选择所属章节')
+          return
+        }
+        if (!this.importForm.file) {
+          this.$message.warning('请选择要上传的文件')
+          return
+        }
+
+        const isExcel = this.importForm.file.name.endsWith('.xlsx') || this.importForm.file.name.endsWith('.xls')
+        if (!isExcel) {
+          this.$message.warning('请上传 Excel 文件（.xlsx 或 .xls）')
+          return
+        }
+
+        this.importing = true
+
+        try {
+          const res = await importEduQuestionBank(
+            this.importForm.file,
+            this.importForm.courseId,
+            this.importForm.chapterId
+          )
+
+          this.$message.success(res.message || '导入成功')
+          this.importDialogVisible = false
+          this.getList() // 刷新列表
+
+        } catch (error) {
+          this.$message.error(error.message || '导入失败')
+        } finally {
+          this.importing = false
+        }
+      }
+
   }
 }
 </script>

@@ -1,162 +1,150 @@
 package com.edu.teaching.util;
 
-import cn.hutool.core.util.StrUtil;
-import com.edu.teaching.module.edu_question_bank.entity.EduQuestionBank;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Excel 题目解析工具类
+ * Excel 题目解析器
  */
-@Slf4j
 public class ExcelQuestionParser {
 
     /**
-     * 解析 Excel 文件并返回题目列表
-     *
-     * Excel 模板格式：
-     * | 题目标题 | 题目类型 | 难度等级 | 答案内容 | 解析 | 分值 |
-     * |---------|---------|---------|---------|------|------|
+     * 解析 Excel 文件，返回 Map 列表（不依赖实体类）
      */
-    public static List<EduQuestionBank> parse(byte[] excelBytes) throws IOException {
-        List<EduQuestionBank> questions = new ArrayList<>();
+    public static List<java.util.Map<String, Object>> parse(byte[] bytes) throws IOException {
+        List<java.util.Map<String, Object>> questions = new ArrayList<>();
 
-        try (Workbook workbook = new XSSFWorkbook(new ByteArrayInputStream(excelBytes))) {
-            Sheet sheet = workbook.getSheetAt(0);
+        // 创建 Workbook
+        Workbook workbook = WorkbookFactory.create(new ByteArrayInputStream(bytes));
 
-            // 跳过表头（第0行）
-            for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
-                Row row = sheet.getRow(rowIndex);
-                if (row == null) continue;
+        // 获取第一个工作表
+        Sheet sheet = workbook.getSheetAt(0);
 
-                EduQuestionBank question = parseRow(row, rowIndex + 1);
-                if (question != null) {
-                    questions.add(question);
-                }
+        // 从第二行开始读取数据（第一行是表头）
+        for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+            Row row = sheet.getRow(i);
+            if (row == null) {
+                continue;
             }
+
+            java.util.Map<String, Object> question = new java.util.HashMap<>();
+
+            // 读取数据
+            String questionTitle = getCellValue(row.getCell(0));
+            String questionTypeStr = getCellValue(row.getCell(1));
+            String difficultyLevelStr = getCellValue(row.getCell(2));
+            String answerContent = getCellValue(row.getCell(3));
+            String analysisContent = getCellValue(row.getCell(4));
+            String scoreStr = getCellValue(row.getCell(5));
+
+            // 跳过空行
+            if (questionTitle == null || questionTitle.trim().isEmpty()) {
+                continue;
+            }
+
+            // 使用数据库字段名（下划线命名）
+            question.put("question_title", questionTitle);
+            question.put("question_type", mapQuestionType(questionTypeStr));
+            question.put("difficulty_level", mapDifficultyLevel(difficultyLevelStr));
+            question.put("answer_content", answerContent);
+            question.put("analysis_content", analysisContent);
+            question.put("score", scoreStr != null && !scoreStr.isEmpty() ? Integer.parseInt(scoreStr) : 5);
+            question.put("status", 1); // 默认启用
+
+            questions.add(question);
         }
 
-        log.info("Excel 解析完成，共解析出 {} 道题目", questions.size());
+        workbook.close();
         return questions;
     }
 
     /**
-     * 解析单行数据
+     * 获取单元格的值
      */
-    private static EduQuestionBank parseRow(Row row, int rowNum) {
-        EduQuestionBank question = new EduQuestionBank();
-
-        try {
-            // 题目标题 (第0列)
-            String questionTitle = getCellValueAsString(row.getCell(0));
-            if (StrUtil.isBlank(questionTitle)) {
-                log.warn("第 {} 行：题目标题为空，跳过", rowNum);
-                return null;
-            }
-            question.setQuestionTitle(questionTitle);
-
-            // 题目类型 (第1列) - 1:单选 2:多选 3:判断 4:填空 5:主观
-            String typeStr = getCellValueAsString(row.getCell(1));
-            question.setQuestionType(parseQuestionType(typeStr));
-
-            // 难度等级 (第2列) - 1:简单 2:中等 3:困难
-            String difficultyStr = getCellValueAsString(row.getCell(2));
-            question.setDifficultyLevel(parseDifficultyLevel(difficultyStr));
-
-            // 答案内容 (第3列)
-            question.setAnswerContent(getCellValueAsString(row.getCell(3)));
-
-            // 解析 (第4列)
-            question.setAnalysisContent(getCellValueAsString(row.getCell(4)));
-
-            // 分值 (第5列)
-            String scoreStr = getCellValueAsString(row.getCell(5));
-            question.setScore(StrUtil.isNotBlank(scoreStr) ? new BigDecimal(scoreStr) : BigDecimal.ZERO);
-
-            // 状态默认为启用
-            question.setStatus(1);
-            question.setCreateTime(LocalDateTime.now());
-
-        } catch (Exception e) {
-            log.error("解析第 {} 行失败: {}", rowNum, e.getMessage());
+    private static String getCellValue(Cell cell) {
+        if (cell == null) {
             return null;
         }
 
-        return question;
-    }
-
-    /**
-     * 获取单元格的字符串值
-     */
-    private static String getCellValueAsString(Cell cell) {
-        if (cell == null) {
-            return "";
+        CellType cellType = cell.getCellType();
+        if (cellType == null) {
+            return null;
         }
 
-        return switch (cell.getCellType()) {
-            case STRING -> cell.getStringCellValue().trim();
-            case NUMERIC -> {
+        switch (cellType) {
+            case STRING:
+                return cell.getStringCellValue().trim();
+            case NUMERIC:
+                // 处理数字类型
                 if (DateUtil.isCellDateFormatted(cell)) {
-                    yield cell.getDateCellValue().toString();
+                    return cell.getDateCellValue().toString();
                 } else {
-                    double num = cell.getNumericCellValue();
-                    // 如果是整数，去掉小数点
-                    yield num == (int) num ? String.valueOf((int) num) : String.valueOf(num);
+                    double value = cell.getNumericCellValue();
+                    if (value == (long) value) {
+                        return String.valueOf((long) value);
+                    } else {
+                        return String.valueOf(value);
+                    }
                 }
-            }
-            case BOOLEAN -> String.valueOf(cell.getBooleanCellValue());
-            case FORMULA -> {
-                try {
-                    yield String.valueOf(cell.getNumericCellValue());
-                } catch (Exception e) {
-                    yield cell.getStringCellValue();
-                }
-            }
-            default -> "";
-        };
+            case BOOLEAN:
+                return String.valueOf(cell.getBooleanCellValue());
+            case FORMULA:
+                return cell.getCellFormula();
+            case BLANK:
+                return null;
+            default:
+                return null;
+        }
     }
 
     /**
-     * 解析题目类型
+     * 映射题目类型
      */
-    private static Integer parseQuestionType(String typeStr) {
-        if (StrUtil.isBlank(typeStr)) return 1; // 默认单选
+    private static Integer mapQuestionType(String typeStr) {
+        if (typeStr == null) return 1;
 
-        return switch (typeStr.toLowerCase()) {
-            case "单选", "1", "单选题" -> 1;
-            case "多选", "2", "多选题" -> 2;
-            case "判断", "3", "判断题" -> 3;
-            case "填空", "4", "填空题" -> 4;
-            case "主观", "5", "主观题", "简答" -> 5;
-            default -> {
-                log.warn("未知的题目类型: {}，使用默认值(单选)", typeStr);
-                yield 1;
-            }
-        };
+        String lowerType = typeStr.toLowerCase();
+
+        if (lowerType.contains("单选")) return 1;
+        if (lowerType.contains("多选")) return 2;
+        if (lowerType.contains("判断")) return 3;
+        if (lowerType.contains("填空")) return 4;
+        if (lowerType.contains("主观")) return 5;
+
+        try {
+            int type = Integer.parseInt(typeStr);
+            if (type >= 1 && type <= 5) return type;
+        } catch (NumberFormatException e) {
+            // 忽略
+        }
+
+        return 1;
     }
 
     /**
-     * 解析难度等级
+     * 映射难度等级
      */
-    private static Integer parseDifficultyLevel(String difficultyStr) {
-        if (StrUtil.isBlank(difficultyStr)) return 2; // 默认中等
+    private static Integer mapDifficultyLevel(String levelStr) {
+        if (levelStr == null) return 2;
 
-        return switch (difficultyStr.toLowerCase()) {
-            case "简单", "1", "easy" -> 1;
-            case "中等", "2", "medium" -> 2;
-            case "困难", "3", "hard" -> 3;
-            default -> {
-                log.warn("未知的难度等级: {}，使用默认值(中等)", difficultyStr);
-                yield 2;
-            }
-        };
+        String lowerLevel = levelStr.toLowerCase();
+
+        if (lowerLevel.contains("简单") || lowerLevel.contains("低")) return 1;
+        if (lowerLevel.contains("中等") || lowerLevel.contains("中")) return 2;
+        if (lowerLevel.contains("困难") || lowerLevel.contains("高")) return 3;
+
+        try {
+            int level = Integer.parseInt(levelStr);
+            if (level >= 1 && level <= 3) return level;
+        } catch (NumberFormatException e) {
+            // 忽略
+        }
+
+        return 2;
     }
 }

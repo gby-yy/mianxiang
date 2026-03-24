@@ -19,6 +19,10 @@ import com.edu.teaching.util.ExcelQuestionParser;
 import com.edu.teaching.module.edu_course.service.EduCourseService;
 import com.edu.teaching.module.edu_course.entity.EduCourse;
 
+import cn.hutool.core.bean.BeanUtil;
+import java.util.ArrayList;
+import java.util.Map;
+
 /**
  * @author wuming
  * @description: 章节题库Controller
@@ -162,39 +166,37 @@ public class EduQuestionBankController {
             return Result.error("请上传 Excel 文件 (.xlsx 或 .xls)");
         }
 
-        // 2. 校验课程是否存在（可选，如果需要权限校验）
+        // 2. 校验课程
         try {
             EduCourse course = eduCourseService.getById(courseId);
             if (course == null) {
                 log.warn("课程不存在，ID: {}", courseId);
                 return Result.error("课程不存在");
             }
-
-            // TODO: 这里可以添加权限校验，确保用户只能导入自己课程的题目
-            // EduUserLoginController.LoginUser user = getUser(request);
-            // if (!user.getId().equals(course.getTeacherId())) {
-            //     return Result.error("无权为该课程导入题目");
-            // }
-
         } catch (Exception e) {
             log.error("校验课程失败", e);
             return Result.error("校验课程失败");
         }
 
         try {
-            // 3. 解析 Excel
+            // 3. 解析 Excel，获取 Map 列表
             byte[] bytes = file.getBytes();
-            List<EduQuestionBank> questions = ExcelQuestionParser.parse(bytes);
+            List<Map<String, Object>> questionMaps = ExcelQuestionParser.parse(bytes);
 
-            if (questions.isEmpty()) {
+            if (questionMaps.isEmpty()) {
                 log.warn("Excel 中没有有效的题目数据");
                 return Result.error("Excel 中没有有效的题目数据");
             }
 
-            // 4. 设置课程和章节ID
-            for (EduQuestionBank question : questions) {
+            // 4. 转换为 EduQuestionBank 对象（使用 MyBatis-Plus 自动映射）
+            List<EduQuestionBank> questions = new ArrayList<>();
+            for (Map<String, Object> map : questionMaps) {
+                EduQuestionBank question = new EduQuestionBank();
+                // MyBatis-Plus 会自动将下划线映射到驼峰
+                BeanUtil.copyProperties(map, question, "id", "createTime", "updateTime");
                 question.setCourseId(courseId);
                 question.setChapterId(chapterId);
+                questions.add(question);
             }
 
             // 5. 批量保存
