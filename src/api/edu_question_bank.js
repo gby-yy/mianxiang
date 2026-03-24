@@ -78,3 +78,20 @@ export function listEduCourseChapter(data) {
     data: data || {}
   })
 }
+
+// Excel 批量导入题目
+export function importEduQuestionBank(file, courseId, chapterId) {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('courseId', courseId)
+  formData.append('chapterId', chapterId)
+
+  return request({
+    url: '/edu_question_bank/import',
+    method: 'post',
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}
